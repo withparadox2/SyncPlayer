@@ -38,6 +38,12 @@
                     android:text="Reset" />
             </LinearLayout>
 
+            <EditText
+                android:id="@+id/et_message"
+                android:imeOptions="actionSend"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"/>
+
             <LinearLayout
                 android:id="@+id/layout_devices"
                 android:layout_width="match_parent"

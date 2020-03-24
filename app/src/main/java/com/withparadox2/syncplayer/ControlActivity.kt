@@ -7,8 +7,11 @@ import android.bluetooth.BluetoothDevice
 import android.content.DialogInterface
 import android.content.Intent
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.withparadox2.syncplayer.connection.Client
@@ -23,6 +26,7 @@ class ControlActivity : AppCompatActivity() {
 	private var server: Server? = null
 	private lateinit var layoutDevices: ViewGroup
 	private lateinit var tvMessage: TextView
+	private lateinit var etMessage: EditText
 	private val messageStr = StringBuilder()
 	private var isRunning = false
 	private val deviceList = ArrayList<String>()
@@ -58,17 +62,36 @@ class ControlActivity : AppCompatActivity() {
 
 		tvMessage = findViewById(R.id.tv_message)
 		layoutDevices = findViewById(R.id.layout_devices)
+
+		etMessage = findViewById(R.id.et_message)
+		etMessage.addTextChangedListener(object : TextWatcher {
+			override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+			}
+
+			override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+				val text: String = etMessage.text.toString()
+				if (text.endsWith("#")) {
+					if (isClient) {
+						client?.sendMessage(text)
+					} else {
+						server?.sendMessage(text)
+					}
+					etMessage.setText("")
+				}
+			}
+
+			override fun afterTextChanged(s: Editable?) {
+			}
+
+		})
 	}
 
 	private fun reset() {
 		tvMessage.text = ""
 		messageStr.clear()
 		layoutDevices.removeAllViews()
-		if (isClient) {
-			client?.close()
-		} else {
-			server?.close()
-		}
+		client?.close()
+		server?.close()
 		deviceList.clear()
 	}
 
@@ -104,11 +127,9 @@ class ControlActivity : AppCompatActivity() {
 			if (client == null) {
 				client = Client(this, bltAdapter!!, object : Client.ClientDelegate {
 					override fun onStartScan() {
-						addMessage("onStartScan")
 					}
 
 					override fun onStopScan() {
-						addMessage("onStartScan")
 					}
 
 					override fun onAddDevice(device: BluetoothDevice) {
@@ -118,17 +139,16 @@ class ControlActivity : AppCompatActivity() {
 						}
 					}
 
-					override fun onDisconnect() {
-						addMessage("onDisconnect")
+					override fun onDisconnected() {
+						addMessage("onDisconnected")
 					}
 
-					override fun onConnect(device: BluetoothDevice) {
-						addMessage("onConnect ${device.name} ${device.address}")
-
+					override fun onConnected(device: BluetoothDevice) {
+						addMessage("onConnected ${device.name} ${device.address}")
 					}
 
 					override fun onReadMessage(message: String) {
-						addMessage("read message:${message}")
+						addMessage("【Server】:${message}")
 					}
 
 					override fun onLog(log: String) {
@@ -142,10 +162,18 @@ class ControlActivity : AppCompatActivity() {
 			addMessage("===Server====")
 
 			server = Server(this, bltAdapter!!, object : Server.ServerDelegate {
+				override fun onConnectedStateChanged(device: BluetoothDevice, isAdd: Boolean) {
+				}
+
+				override fun onReceiveMessage(device: BluetoothDevice, message: String) {
+					addMessage("【Client】:$message")
+				}
+
 				override fun onLog(message: String) {
 					addMessage(message)
 				}
 			})
+			server?.initServer()
 		}
 	}
 

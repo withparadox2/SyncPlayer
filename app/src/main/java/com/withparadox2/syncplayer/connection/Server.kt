@@ -7,14 +7,16 @@ import android.bluetooth.le.AdvertiseSettings
 import android.content.Context
 import android.os.ParcelUuid
 import android.util.Log
+import java.lang.Exception
 import java.util.*
+import kotlin.collections.ArrayList
 
-const val TAG = "[Server]"
+private const val TAG = "[Server]"
 
-val UUID_SERVER = UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb")
-val UUID_CHARREAD = UUID.fromString("0000fff1-0000-1000-8000-00805f9b34fb")
-val UUID_CHARWRITE = UUID.fromString("0000fff2-0000-1000-8000-00805f9b34fb")
-private val UUID_DESCRIPTOR = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+val UUID_SERVER: UUID = UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb")
+val UUID_CHAR_READ: UUID = UUID.fromString("0000fff1-0000-1000-8000-00805f9b34fb")
+val UUID_CHAR_WRITE: UUID = UUID.fromString("0000fff2-0000-1000-8000-00805f9b34fb")
+private val UUID_DESCRIPTOR: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
 class Server(
 	private val context: Context,
@@ -25,14 +27,12 @@ class Server(
 	private val bluetoothManager =
 		context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
 
-	private lateinit var characteristicRead: BluetoothGattCharacteristic
-	private lateinit var bluetoothGattServer: BluetoothGattServer
+	private var characteristicRead: BluetoothGattCharacteristic? = null
+	private var bluetoothGattServer: BluetoothGattServer? = null
 
-	init {
-		initServer()
-	}
+	private val deviceList = ArrayList<BluetoothDevice>()
 
-	private fun initServer() {
+	fun initServer() {
 		val settings = AdvertiseSettings.Builder()
 			.setConnectable(true)
 			.build()
@@ -51,14 +51,16 @@ class Server(
 		val callback = object : AdvertiseCallback() {
 
 			override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
-				Log.d(TAG, "BLE advertisement added successfully")
-				delegate.onLog("BLE advertisement added successfully")
-				initServices()
+				log("AdvertiseCallback#onStartSuccess")
+				try {
+					initServices()
+				} catch (e: Exception) {
+					log("#initServices error ${e.message}", e = e)
+				}
 			}
 
 			override fun onStartFailure(errorCode: Int) {
-				Log.e(TAG, "Failed to add BLE advertisement, reason: $errorCode")
-				delegate.onLog("Failed to add BLE advertisement, reason: $errorCode")
+				log("AdvertiseCallback#onStartFailure")
 			}
 		}
 
@@ -72,19 +74,19 @@ class Server(
 
 		//add a read characteristic.
 		characteristicRead = BluetoothGattCharacteristic(
-			UUID_CHARREAD,
+			UUID_CHAR_READ,
 			BluetoothGattCharacteristic.PROPERTY_READ,
 			BluetoothGattCharacteristic.PERMISSION_READ
 		)
 		//add a descriptor
 		val descriptor =
 			BluetoothGattDescriptor(UUID_DESCRIPTOR, BluetoothGattCharacteristic.PERMISSION_WRITE)
-		characteristicRead.addDescriptor(descriptor)
+		characteristicRead!!.addDescriptor(descriptor)
 		service.addCharacteristic(characteristicRead)
 
 		//add a write characteristic.
 		val characteristicWrite = BluetoothGattCharacteristic(
-			UUID_CHARWRITE,
+			UUID_CHAR_WRITE,
 			BluetoothGattCharacteristic.PROPERTY_WRITE or
 					BluetoothGattCharacteristic.PROPERTY_READ or
 					BluetoothGattCharacteristic.PROPERTY_NOTIFY,
@@ -92,34 +94,22 @@ class Server(
 		)
 		service.addCharacteristic(characteristicWrite)
 
-		bluetoothGattServer.addService(service)
-		Log.e(TAG, "2. initServices ok")
-		delegate.onLog("2. initServices ok")
+		bluetoothGattServer!!.addService(service)
 	}
 
 	private val bluetoothGattServerCallback = object : BluetoothGattServerCallback() {
 
 		override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
-			Log.e(
-				TAG,
-				String.format(
-					"onConnectionStateChange：device name = %s, address = %s",
-					device.name,
-					device.address
-				)
-			)
-			Log.e(
-				TAG,
-				String.format("onConnectionStateChange：status = %s, newState =%s ", status, newState)
-			)
-
-			delegate.onLog("onConnectionStateChange：device name = ${device.name}, address = ${device.address}")
-			delegate.onLog("onConnectionStateChange：status = $status, newState = $newState}")
+			log("#onConnectionStateChange：device name = ${device.name}, address = ${device.address} status = $status, newState = $newState}")
+			if (newState == BluetoothProfile.STATE_CONNECTED) {
+				deviceList.add(device)
+			} else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+				deviceList.remove(device)
+			}
 		}
 
 		override fun onServiceAdded(status: Int, service: BluetoothGattService) {
-			Log.e(TAG, String.format("onServiceAdded：status = %s", status))
-			delegate.onLog("onServiceAdded：status = $status")
+			log("#onServiceAdded：status = $status")
 		}
 
 		override fun onCharacteristicReadRequest(
@@ -128,23 +118,9 @@ class Server(
 			offset: Int,
 			characteristic: BluetoothGattCharacteristic
 		) {
-			Log.e(
-				TAG,
-				String.format(
-					"onCharacteristicReadRequest：device name = %s, address = %s",
-					device.name,
-					device.address
-				)
-			)
-			Log.e(
-				TAG,
-				String.format("onCharacteristicReadRequest：requestId = %s, offset = %s", requestId, offset)
-			)
+			log("#onCharacteristicReadRequest：device name = ${device.name}, address = ${device.address} requestId = $requestId, offset = $offset}")
 
-			delegate.onLog("onCharacteristicReadRequest：device name = ${device.name}, address = ${device.address}")
-			delegate.onLog("onCharacteristicReadRequest：requestId = $requestId, offset = $offset}")
-
-			bluetoothGattServer.sendResponse(
+			bluetoothGattServer!!.sendResponse(
 				device,
 				requestId,
 				BluetoothGatt.GATT_SUCCESS,
@@ -162,40 +138,17 @@ class Server(
 			offset: Int,
 			requestBytes: ByteArray
 		) {
-			Log.e(
-				TAG,
-				String.format(
-					"3.onCharacteristicWriteRequest：device name = %s, address = %s",
-					device.name,
-					device.address
-				)
-			)
-			Log.e(
-				TAG,
-				String.format(
-					"3.onCharacteristicWriteRequest：requestId = %s, preparedWrite=%s, responseNeeded=%s, offset=%s, value=%s",
-					requestId,
-					preparedWrite,
-					responseNeeded,
-					offset,
-					String(requestBytes)
-				)
-			)
+			log("#onCharacteristicWriteRequest：device name = ${device.name}, address = ${device.address} requestId = $requestId, preparedWrite = ${preparedWrite}, responseNeeded = ${responseNeeded}, offset = ${offset}, value = $requestBytes")
 
-
-			delegate.onLog("onCharacteristicWriteRequest：device name = ${device.name}, address = ${device.address}")
-			delegate.onLog("onCharacteristicWriteRequest：requestId = $requestId, preparedWrite = ${preparedWrite}, responseNeeded = ${responseNeeded}, offset = ${offset}, value = $requestBytes")
-
-
-			bluetoothGattServer.sendResponse(
+			bluetoothGattServer!!.sendResponse(
 				device,
 				requestId,
 				BluetoothGatt.GATT_SUCCESS,
 				offset,
-				requestBytes
+				requestBytes//TODO change this value to a random text
 			)
-			//4.处理响应内容
-			onResponseToClient(requestBytes, device, requestId, characteristic)
+
+			delegate.onReceiveMessage(device, String(requestBytes))
 		}
 
 		override fun onDescriptorWriteRequest(
@@ -207,33 +160,14 @@ class Server(
 			offset: Int,
 			value: ByteArray
 		) {
-			Log.e(
-				TAG,
-				String.format(
-					"2.onDescriptorWriteRequest：device name = %s, address = %s",
-					device.name,
-					device.address
-				)
+			log("#onDescriptorWriteRequest：device name = ${device.name}, address = ${device.address} requestId = $requestId, preparedWrite = ${preparedWrite}, responseNeeded = ${responseNeeded}, offset = ${offset}, value = $value")
+			bluetoothGattServer!!.sendResponse(
+				device,
+				requestId,
+				BluetoothGatt.GATT_SUCCESS,
+				offset,
+				value
 			)
-			Log.e(
-				TAG,
-				String.format(
-					"2.onDescriptorWriteRequest：requestId = %s, preparedWrite = %s, responseNeeded = %s, offset = %s, value = %s,",
-					requestId,
-					preparedWrite,
-					responseNeeded,
-					offset,
-					String(value)
-				)
-			)
-
-
-			delegate.onLog("onDescriptorWriteRequest：device name = ${device.name}, address = ${device.address}")
-			delegate.onLog("onDescriptorWriteRequest：requestId = $requestId, preparedWrite = ${preparedWrite}, responseNeeded = ${responseNeeded}, offset = ${offset}, value = $value")
-
-
-			// now tell the connected device that this was all successfull
-			bluetoothGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value)
 		}
 
 		override fun onDescriptorReadRequest(
@@ -242,92 +176,70 @@ class Server(
 			offset: Int,
 			descriptor: BluetoothGattDescriptor
 		) {
-			Log.e(
-				TAG,
-				String.format(
-					"onDescriptorReadRequest：device name = %s, address = %s",
-					device.name,
-					device.address
-				)
+			log("#onDescriptorReadRequest：device name = ${device.name}, address = ${device.address} requestId = $requestId")
+
+			bluetoothGattServer!!.sendResponse(
+				device,
+				requestId,
+				BluetoothGatt.GATT_SUCCESS,
+				offset,
+				null
 			)
-			Log.e(TAG, String.format("onDescriptorReadRequest：requestId = %s", requestId))
-			//            super.onDescriptorReadRequest(device, requestId, offset, descriptor);
-
-			delegate.onLog("onDescriptorReadRequest：device name = ${device.name}, address = ${device.address}")
-			delegate.onLog("onDescriptorReadRequest：requestId = $requestId, offset = $offset}")
-
-
-			bluetoothGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, null)
 		}
 
 		override fun onNotificationSent(device: BluetoothDevice, status: Int) {
-			super.onNotificationSent(device, status)
-			Log.e(
-				TAG,
-				String.format(
-					"5.onNotificationSent：device name = %s, address = %s",
-					device.name,
-					device.address
-				)
-			)
-			Log.e(TAG, String.format("5.onNotificationSent：status = %s", status))
-
-			delegate.onLog("onNotificationSent：device name = ${device.name}, address = ${device.address}")
-			delegate.onLog("onNotificationSent：status = $status")
-
-
+			//TODO make sure this method has been invoked before sending further messages
+			log("#onNotificationSent：device name = ${device.name}, address = ${device.address} status = $status")
 		}
 
 		override fun onMtuChanged(device: BluetoothDevice, mtu: Int) {
-			super.onMtuChanged(device, mtu)
-			Log.e(TAG, String.format("onMtuChanged：mtu = %s", mtu))
-			delegate.onLog("onMtuChanged：mtu = $mtu")
-
+			log("#onMtuChanged：mtu = $mtu")
 		}
 
 		override fun onExecuteWrite(device: BluetoothDevice, requestId: Int, execute: Boolean) {
-			super.onExecuteWrite(device, requestId, execute)
-			Log.e(TAG, String.format("onExecuteWrite：requestId = %s", requestId))
-			delegate.onLog("onExecuteWrite：requestId = $requestId")
-
+			log("#onExecuteWrite：requestId = $requestId")
 		}
 	}
 
-	private fun onResponseToClient(
-		requestBytes: ByteArray,
-		device: BluetoothDevice,
-		requestId: Int,
-		characteristic: BluetoothGattCharacteristic
-	) {
-		Log.e(
-			TAG,
-			String.format(
-				"4.onResponseToClient：device name = %s, address = %s",
-				device.name,
-				device.address
-			)
-		)
-		Log.e(TAG, String.format("4.onResponseToClient：requestId = %s", requestId))
-		val msg = String(requestBytes)
-
-
-		delegate.onLog("onResponseToClient：device name = ${device.name}, address = ${device.address}")
-		delegate.onLog("onResponseToClient：requestId = $requestId")
-
-		println("4.收到:$msg")
-
-		val str = String(requestBytes) + " hello back123>"
-		characteristicRead.value = str.toByteArray()
-		bluetoothGattServer.notifyCharacteristicChanged(device, characteristicRead, false)
-
-		println("4.响应:$str")
+	fun close() {
+		bluetoothGattServer?.close()
+		bluetoothGattServer?.clearServices()
+		deviceList.forEach {
+			bluetoothGattServer?.cancelConnection(it)
+		}
+		bluetoothGattServer = null
+		characteristicRead = null
+		deviceList.clear()
+		log("#close")
 	}
 
-	fun close() {
-		bluetoothGattServer.close()
+	fun sendMessage(message: String): Boolean {
+		if (characteristicRead != null && bluetoothGattServer != null) {
+			characteristicRead!!.value = message.toByteArray()
+			var result = true
+			deviceList.forEach {
+				result = result && bluetoothGattServer!!.notifyCharacteristicChanged(it, characteristicRead, false)
+			}
+			return result
+		}
+		return false
+	}
+
+	fun log(message: String, show: Boolean = true, e: Exception? = null) {
+		e?.let { Log.e(TAG, message, e) } ?: Log.i(TAG, message)
+
+		if (show) {
+			delegate.onLog(message)
+		}
+	}
+
+	fun getConnectedDeviceList(): ArrayList<BluetoothDevice> {
+		return deviceList
 	}
 
 	interface ServerDelegate {
 		fun onLog(message: String)
+		fun onConnectedStateChanged(device: BluetoothDevice, isAdd: Boolean)
+		fun onReceiveMessage(device: BluetoothDevice, message: String)
 	}
 }
