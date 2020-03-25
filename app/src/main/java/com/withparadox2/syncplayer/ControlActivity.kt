@@ -6,20 +6,45 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.DialogInterface
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.StateListDrawable
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.children
 import com.withparadox2.syncplayer.connection.Client
 import com.withparadox2.syncplayer.connection.Server
+import kotlin.math.abs
 
 private const val RC_ENABLE_BLE = 0
 
-class ControlActivity : AppCompatActivity() {
+val PLAY_LIST = mapOf(
+	"26427666" to "我说今晚月光那么美,你说是的",
+	"137703" to "晚安",
+	"32628933" to "孙大剩",
+	"407761964" to "历历万乡",
+	"549320309" to "克林",
+	"252951" to "谢谢你让我这么爱你",
+	"422429521" to "迷藏",
+	"30031580" to "原来你也在这里",
+	"28606468" to "老情歌",
+	"1336871780" to "恋曲2018",
+	"29414037" to "走马",
+	"30953645" to "离别的车站",
+	"544713530" to "如常"
+)
+
+open class ControlActivity : AppCompatActivity() {
 	private var bltAdapter: BluetoothAdapter? = null
 	private var isClient: Boolean = true
 	private var client: Client? = null
@@ -30,6 +55,25 @@ class ControlActivity : AppCompatActivity() {
 	private val messageStr = StringBuilder()
 	private var isRunning = false
 	private val deviceList = ArrayList<String>()
+
+	private var controlPlayId: String? = null
+	private var curPlayId: String? = null
+
+	private val handler = Handler()
+	private val playerManager = PlayManager(this, object : PlayManager.PlayerDelegate {
+		override fun onCompletion() {
+		}
+
+		override fun onPrepared() {
+			if (curPlayId == controlPlayId) {
+				sendMessage(curPlayId!!)
+			} else {
+				sendMessage("go")
+				start()
+			}
+		}
+	})
+	lateinit var playLayout: LinearLayout
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
@@ -84,6 +128,9 @@ class ControlActivity : AppCompatActivity() {
 			}
 
 		})
+
+		playLayout = findViewById(R.id.layout_playlist)
+		addPlayListView()
 	}
 
 	private fun reset() {
@@ -149,6 +196,7 @@ class ControlActivity : AppCompatActivity() {
 
 					override fun onReadMessage(message: String) {
 						addMessage("【Server】:${message}")
+						parseMessage(message)
 					}
 
 					override fun onLog(log: String) {
@@ -167,6 +215,7 @@ class ControlActivity : AppCompatActivity() {
 
 				override fun onReceiveMessage(device: BluetoothDevice, message: String) {
 					addMessage("【Client】:$message")
+					parseMessage(message)
 				}
 
 				override fun onLog(message: String) {
@@ -208,11 +257,12 @@ class ControlActivity : AppCompatActivity() {
 		PermissionManager.instance.handlePermissionResult(requestCode, permissions, grantResults)
 	}
 
-	open fun checkPermission() {
+	private fun checkPermission() {
 		if (!PermissionManager.instance.hasPermission(
 				this,
 				Manifest.permission.WRITE_EXTERNAL_STORAGE,
-				Manifest.permission.CAMERA
+				Manifest.permission.ACCESS_FINE_LOCATION,
+				Manifest.permission.ACCESS_COARSE_LOCATION
 			)
 		) {
 			PermissionDialog(DialogInterface.OnClickListener { _, _ ->
@@ -236,12 +286,127 @@ class ControlActivity : AppCompatActivity() {
 				}
 
 			},
+			Manifest.permission.WRITE_EXTERNAL_STORAGE,
 			Manifest.permission.ACCESS_FINE_LOCATION,
 			Manifest.permission.ACCESS_COARSE_LOCATION
 		)
 	}
 
-	open fun onGetPermission() {
+	private fun onGetPermission() {
 		mGetPermissions = true
+	}
+
+	private fun addPlayListView() {
+		PLAY_LIST.keys.forEach { key ->
+			val name = PLAY_LIST[key]
+			val view = TextView(this)
+			view.setPadding(30, 15, 30, 15)
+			view.text = name
+			view.background = StateListDrawable().apply {
+				this.addState(intArrayOf(android.R.attr.state_pressed), ColorDrawable(Color.BLUE))
+				this.addState(intArrayOf(android.R.attr.state_enabled), ColorDrawable(Color.RED))
+			}
+			view.tag = key
+			view.setOnClickListener(itemClickListener)
+			playLayout.addView(view)
+		}
+	}
+
+	private val itemClickListener = View.OnClickListener {
+		val id = it.tag as String
+		controlPlayId = id
+		playMusic(id)
+	}
+
+	private fun updateView() {
+		playLayout.children.forEach {
+			val id = it.tag as String
+			val state = if (id == curPlayId) "[播放]${PLAY_LIST[id]}" else PLAY_LIST[id]
+			(it as TextView).text = state
+		}
+	}
+
+	private fun playMusic(id: String) {
+		lastOffset = 0
+		lastAppend = 0
+
+		if (id == curPlayId) {
+			playerManager.stop()
+			curPlayId = null
+			sendMessage("stop")
+			handler.removeCallbacks(checkPositionAction)
+		} else {
+			if (curPlayId != null) {
+				playerManager.stop()
+			}
+			curPlayId = id
+			playerManager.play("https://music.163.com/song/media/outer/url?id=${id}.mp3")
+		}
+		updateView()
+	}
+
+	fun start() {
+		runOnUiThread {
+			Toast.makeText(this, "start", Toast.LENGTH_SHORT).show()
+		}
+
+		playerManager.resume()
+
+		if (!isClient) {
+			handler.postDelayed(checkPositionAction, 300)
+		}
+	}
+
+	private val checkPositionAction = object : Runnable {
+		override fun run() {
+			addMessage("position = " + playerManager.currentPosition)
+			sendMessage("check#" + playerManager.currentPosition)
+			handler.postDelayed(this, 300)
+		}
+	}
+
+	private var lastOffset = 0
+	private var lastAppend = 0
+
+	private fun parseMessage(message: String) {
+		when {
+			message == "go" -> start()
+			message == "stop" -> {
+				curPlayId?.let { playMusic(it) }
+			}
+			message == "stop_sync" -> {
+				handler.removeCallbacks(checkPositionAction)
+			}
+			message.startsWith("check") -> {
+				val position = message.substring(6).toInt() + 70
+				addMessage("remote $position local ${playerManager.currentPosition}")
+				val offset = position - playerManager.currentPosition
+				if (abs(offset) > 10) {
+					if (offset > 0) {
+						lastAppend += 10
+					} else {
+						lastAppend -= 10
+					}
+
+					addMessage("append = $lastAppend")
+					playerManager.seekPosition(position + lastAppend)
+					lastOffset = offset
+				} else {
+					sendMessage("stop_sync")
+				}
+			}
+			else -> {
+				controlPlayId = null
+				playMusic(message)
+			}
+		}
+	}
+
+	private fun sendMessage(message: String) {
+		if (isClient) {
+			client?.sendMessage(message)
+		} else {
+			server?.sendMessage(message)
+		}
 	}
 }

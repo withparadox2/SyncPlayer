@@ -40,9 +40,16 @@
 
             <EditText
                 android:id="@+id/et_message"
-                android:imeOptions="actionSend"
                 android:layout_width="match_parent"
-                android:layout_height="60dp"/>
+                android:layout_height="60dp"
+                android:imeOptions="actionSend"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/layout_playlist"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
 
             <LinearLayout
                 android:id="@+id/layout_devices"
