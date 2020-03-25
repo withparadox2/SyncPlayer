@@ -70,7 +70,7 @@ class ControlActivity : AppCompatActivity() {
 
 			override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
 				val text: String = etMessage.text.toString()
-				if (text.endsWith("#")) {
+				if (text.endsWith("\n")) {
 					if (isClient) {
 						client?.sendMessage(text)
 					} else {

@@ -2,10 +2,13 @@ package com.withparadox2.syncplayer.connection
 
 import android.bluetooth.*
 import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.ContentValues.TAG
 import android.content.Context
 import android.os.Handler
+import android.os.ParcelUuid
 import android.util.Log
 import java.lang.Exception
 import java.util.*
@@ -30,8 +33,14 @@ class Client(
 			return
 		}
 		isScanning = true
+		val filter = ScanFilter.Builder().setServiceUuid(ParcelUuid(UUID_SERVER)).build()
+
 		bltAdapter.bluetoothLeScanner.stopScan(scanCallback)
-		bltAdapter.bluetoothLeScanner.startScan(scanCallback)
+		bltAdapter.bluetoothLeScanner.startScan(
+			listOf(filter),
+			ScanSettings.Builder().build(),
+			scanCallback
+		)
 		handler.postDelayed({
 			bltAdapter.bluetoothLeScanner.stopScan(scanCallback)
 			delegate.onStopScan()
@@ -97,16 +106,14 @@ class Client(
 
 		override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
 			if (status == BluetoothGatt.GATT_SUCCESS) {
-				initCharacteristic()
-//				try {
-//					Thread.sleep(200)
-//				} catch (e: InterruptedException) {
-//					e.printStackTrace()
-//				}
+				try {
+					initCharacteristic()
+				} catch (e: Exception) {
+					log("#onServicesDiscovered error ${e.message}", e = e)
+				}
 				delegate.onConnected(curDevice!!)
 			}
 			log("#onServicesDiscovered: status = $status")
-
 		}
 	}
 

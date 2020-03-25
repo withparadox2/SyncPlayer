@@ -17,8 +17,8 @@ val UUID_SERVER: UUID = UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb")
 val UUID_CHAR_READ: UUID = UUID.fromString("0000fff1-0000-1000-8000-00805f9b34fb")
 val UUID_CHAR_WRITE: UUID = UUID.fromString("0000fff2-0000-1000-8000-00805f9b34fb")
 private val UUID_DESCRIPTOR: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-
 class Server(
+
 	private val context: Context,
 	private val bltAdapter: BluetoothAdapter,
 	private val delegate: ServerDelegate
@@ -202,8 +202,8 @@ class Server(
 	}
 
 	fun close() {
-		bluetoothGattServer?.close()
 		bluetoothGattServer?.clearServices()
+		bluetoothGattServer?.close()
 		deviceList.forEach {
 			bluetoothGattServer?.cancelConnection(it)
 		}
