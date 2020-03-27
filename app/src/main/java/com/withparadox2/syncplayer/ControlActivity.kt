@@ -23,7 +23,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.children
 import com.withparadox2.syncplayer.connection.Client
 import com.withparadox2.syncplayer.connection.Server
-import kotlin.math.abs
 
 private const val RC_ENABLE_BLE = 0
 
@@ -137,7 +136,7 @@ open class ControlActivity : AppCompatActivity() {
 //      start2()
 //      handler.post(checkPositionAction)
       addMessage("after seek ${playerManager.currentPosition}")
-      handler.postDelayed(object :Runnable{
+      handler.postDelayed(object : Runnable {
         override fun run() {
 
           addMessage("position after 8000 = ${playerManager.currentPosition} cost = ${System.currentTimeMillis() - lastSendTime}")
@@ -363,8 +362,10 @@ open class ControlActivity : AppCompatActivity() {
     }
     updateView()
   }
+
   fun start2() {
   }
+
   fun start() {
     runOnUiThread {
       Toast.makeText(this, "start", Toast.LENGTH_SHORT).show()
@@ -432,11 +433,11 @@ open class ControlActivity : AppCompatActivity() {
       }
       message.startsWith("check") -> {
         val rtt = System.currentTimeMillis() - lastSendTime
-        val position : Int = (message.substring(6).toInt() + (rtt / 2 + 200)).toInt()
-        addMessage("remote ${message.substring(6)} local ${playerManager.currentPosition} rtt = $rtt" )
+        val position: Int = (message.substring(6).toInt() + (rtt / 2 + 200)).toInt()
+        addMessage("remote ${message.substring(6)} local ${playerManager.currentPosition} rtt = $rtt")
         val offset = position - playerManager.currentPosition
         playerManager.seekPosition(position)
-        addMessage("local ${playerManager.currentPosition}" )
+        addMessage("local ${playerManager.currentPosition}")
 
       }
       else -> {

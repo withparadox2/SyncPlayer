@@ -57,7 +57,6 @@ class PlayManager(context: Context, private val delegate: PlayerDelegate) :
     isPaused = false
   }
 
-  @RequiresApi(Build.VERSION_CODES.O)
   fun seekPosition(millis: Int) {
     player.seekTo(millis)
   }
