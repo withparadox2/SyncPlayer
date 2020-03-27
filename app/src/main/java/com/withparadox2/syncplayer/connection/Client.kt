@@ -16,159 +16,159 @@ import java.util.*
 private const val TAG = "[Client]"
 
 class Client(
-	private val context: Context,
-	private val bltAdapter: BluetoothAdapter,
-	private val delegate: ClientDelegate
+  private val context: Context,
+  private val bltAdapter: BluetoothAdapter,
+  private val delegate: ClientDelegate
 ) {
-	private val handler = Handler()
-	private var bluetoothGatt: BluetoothGatt? = null
-	private var curDevice: BluetoothDevice? = null
-	private var readCharacteristic: BluetoothGattCharacteristic? = null
-	private var writeCharacteristic: BluetoothGattCharacteristic? = null
+  private val handler = Handler()
+  private var bluetoothGatt: BluetoothGatt? = null
+  private var curDevice: BluetoothDevice? = null
+  private var readCharacteristic: BluetoothGattCharacteristic? = null
+  private var writeCharacteristic: BluetoothGattCharacteristic? = null
 
-	var isScanning = false
+  var isScanning = false
 
-	fun scan() {
-		if (isScanning) {
-			return
-		}
-		isScanning = true
-		val filter = ScanFilter.Builder().setServiceUuid(ParcelUuid(UUID_SERVER)).build()
+  fun scan() {
+    if (isScanning) {
+      return
+    }
+    isScanning = true
+    val filter = ScanFilter.Builder().setServiceUuid(ParcelUuid(UUID_SERVER)).build()
 
-		bltAdapter.bluetoothLeScanner.stopScan(scanCallback)
-		bltAdapter.bluetoothLeScanner.startScan(
-			listOf(filter),
-			ScanSettings.Builder().build(),
-			scanCallback
-		)
-		handler.postDelayed({
-			bltAdapter.bluetoothLeScanner.stopScan(scanCallback)
-			delegate.onStopScan()
-			isScanning = false
-			log("Stop scan")
-		}, 100000)
-		delegate.onStartScan()
-		log("Start scan")
-	}
+    bltAdapter.bluetoothLeScanner.stopScan(scanCallback)
+    bltAdapter.bluetoothLeScanner.startScan(
+      listOf(filter),
+      ScanSettings.Builder().build(),
+      scanCallback
+    )
+    handler.postDelayed({
+      bltAdapter.bluetoothLeScanner.stopScan(scanCallback)
+      delegate.onStopScan()
+      isScanning = false
+      log("Stop scan")
+    }, 100000)
+    delegate.onStartScan()
+    log("Start scan")
+  }
 
-	private val scanCallback = object : ScanCallback() {
-		override fun onScanResult(callbackType: Int, result: ScanResult?) {
-			result?.let {
-				delegate.onAddDevice(it.device)
-			}
-		}
-	}
+  private val scanCallback = object : ScanCallback() {
+    override fun onScanResult(callbackType: Int, result: ScanResult?) {
+      result?.let {
+        delegate.onAddDevice(it.device)
+      }
+    }
+  }
 
-	fun connect(device: BluetoothDevice) {
-		curDevice = device
-		bluetoothGatt = device.connectGatt(context, false, gattCallback)
-	}
+  fun connect(device: BluetoothDevice) {
+    curDevice = device
+    bluetoothGatt = device.connectGatt(context, false, gattCallback)
+  }
 
-	private val gattCallback = object : BluetoothGattCallback() {
-		override fun onCharacteristicRead(
-			gatt: BluetoothGatt?,
-			characteristic: BluetoothGattCharacteristic?,
-			status: Int
-		) {
-			log("#onCharacteristicRead status = $status")
-			if (status == BluetoothGatt.GATT_SUCCESS) {
-				characteristic?.let {
-					delegate.onReadMessage(String(it.value))
-				}
-			}
-		}
+  private val gattCallback = object : BluetoothGattCallback() {
+    override fun onCharacteristicRead(
+      gatt: BluetoothGatt?,
+      characteristic: BluetoothGattCharacteristic?,
+      status: Int
+    ) {
+      log("#onCharacteristicRead status = $status")
+      if (status == BluetoothGatt.GATT_SUCCESS) {
+        characteristic?.let {
+          delegate.onReadMessage(String(it.value))
+        }
+      }
+    }
 
-		override fun onCharacteristicWrite(
-			gatt: BluetoothGatt?,
-			characteristic: BluetoothGattCharacteristic?,
-			status: Int
-		) {
-			log("#onCharacteristicWrite status = $status")
-		}
+    override fun onCharacteristicWrite(
+      gatt: BluetoothGatt?,
+      characteristic: BluetoothGattCharacteristic?,
+      status: Int
+    ) {
+      log("#onCharacteristicWrite status = $status")
+    }
 
-		override fun onCharacteristicChanged(
-			gatt: BluetoothGatt?,
-			characteristic: BluetoothGattCharacteristic?
-		) {
-			log("#onCharacteristicChanged characteristic: $characteristic")
-			readMessage(characteristic)
-		}
+    override fun onCharacteristicChanged(
+      gatt: BluetoothGatt?,
+      characteristic: BluetoothGattCharacteristic?
+    ) {
+      log("#onCharacteristicChanged characteristic: $characteristic")
+      readMessage(characteristic)
+    }
 
-		override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
-			if (newState == BluetoothProfile.STATE_CONNECTED) {
-				bluetoothGatt!!.discoverServices()
-			} else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-				delegate.onDisconnected()
-			}
+    override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
+      if (newState == BluetoothProfile.STATE_CONNECTED) {
+        bluetoothGatt!!.discoverServices()
+      } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+        delegate.onDisconnected()
+      }
 
-			log("#onConnectionStateChange newState: $newState")
-		}
+      log("#onConnectionStateChange newState: $newState")
+    }
 
-		override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
-			if (status == BluetoothGatt.GATT_SUCCESS) {
-				try {
-					initCharacteristic()
-				} catch (e: Exception) {
-					log("#onServicesDiscovered error ${e.message}", e = e)
-				}
-				delegate.onConnected(curDevice!!)
-			}
-			log("#onServicesDiscovered: status = $status")
-		}
-	}
+    override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
+      if (status == BluetoothGatt.GATT_SUCCESS) {
+        try {
+          initCharacteristic()
+        } catch (e: Exception) {
+          log("#onServicesDiscovered error ${e.message}", e = e)
+        }
+        delegate.onConnected(curDevice!!)
+      }
+      log("#onServicesDiscovered: status = $status")
+    }
+  }
 
-	fun initCharacteristic() {
-		val services = bluetoothGatt!!.services
-		Log.e(TAG, services.toString())
-		val service = bluetoothGatt!!.getService(UUID_SERVER)
+  fun initCharacteristic() {
+    val services = bluetoothGatt!!.services
+    Log.e(TAG, services.toString())
+    val service = bluetoothGatt!!.getService(UUID_SERVER)
 
-		readCharacteristic = service.getCharacteristic(UUID_CHAR_READ)
-		writeCharacteristic = service.getCharacteristic(UUID_CHAR_WRITE)
+    readCharacteristic = service.getCharacteristic(UUID_CHAR_READ)
+    writeCharacteristic = service.getCharacteristic(UUID_CHAR_WRITE)
 
-		val uuid = "00002902-0000-1000-8000-00805f9b34fb"
-		bluetoothGatt!!.setCharacteristicNotification(readCharacteristic, true)
-		val descriptor = readCharacteristic!!.getDescriptor(UUID.fromString(uuid))
-		descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-		bluetoothGatt!!.writeDescriptor(descriptor)
-	}
+    val uuid = "00002902-0000-1000-8000-00805f9b34fb"
+    bluetoothGatt!!.setCharacteristicNotification(readCharacteristic, true)
+    val descriptor = readCharacteristic!!.getDescriptor(UUID.fromString(uuid))
+    descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+    bluetoothGatt!!.writeDescriptor(descriptor)
+  }
 
-	fun readMessage(characteristic: BluetoothGattCharacteristic? = readCharacteristic) {
-		if (bluetoothGatt != null && characteristic != null) {
-			bluetoothGatt!!.readCharacteristic(characteristic)
-		}
-	}
+  fun readMessage(characteristic: BluetoothGattCharacteristic? = readCharacteristic) {
+    if (bluetoothGatt != null && characteristic != null) {
+      bluetoothGatt!!.readCharacteristic(characteristic)
+    }
+  }
 
-	fun sendMessage(message: String) {
-		if (bluetoothGatt != null && writeCharacteristic != null) {
-			writeCharacteristic!!.setValue(message)
-			writeCharacteristic!!.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-			bluetoothGatt!!.writeCharacteristic(writeCharacteristic)
-		}
-	}
+  fun sendMessage(message: String) {
+    if (bluetoothGatt != null && writeCharacteristic != null) {
+      writeCharacteristic!!.setValue(message)
+      writeCharacteristic!!.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+      bluetoothGatt!!.writeCharacteristic(writeCharacteristic)
+    }
+  }
 
-	fun close() {
-		bluetoothGatt?.close()
-		writeCharacteristic = null
-		readCharacteristic = null
-		curDevice = null
-	}
+  fun close() {
+    bluetoothGatt?.close()
+    writeCharacteristic = null
+    readCharacteristic = null
+    curDevice = null
+  }
 
-	fun log(message: String, show: Boolean = true, e: Exception? = null) {
-		e?.let { Log.e(com.withparadox2.syncplayer.connection.TAG, message, e) }
-			?: Log.i(com.withparadox2.syncplayer.connection.TAG, message)
+  fun log(message: String, show: Boolean = true, e: Exception? = null) {
+    e?.let { Log.e(com.withparadox2.syncplayer.connection.TAG, message, e) }
+      ?: Log.i(com.withparadox2.syncplayer.connection.TAG, message)
 
-		if (show) {
-			delegate.onLog(message)
-		}
-	}
+    if (show) {
+      delegate.onLog(message)
+    }
+  }
 
-	interface ClientDelegate {
-		fun onStartScan()
-		fun onStopScan()
-		fun onAddDevice(device: BluetoothDevice)
-		fun onDisconnected()
-		fun onConnected(device: BluetoothDevice)
-		fun onReadMessage(message: String)
-		fun onLog(log: String)
-	}
+  interface ClientDelegate {
+    fun onStartScan()
+    fun onStopScan()
+    fun onAddDevice(device: BluetoothDevice)
+    fun onDisconnected()
+    fun onConnected(device: BluetoothDevice)
+    fun onReadMessage(message: String)
+    fun onLog(log: String)
+  }
 }

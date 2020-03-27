@@ -9,12 +9,12 @@ import androidx.fragment.app.DialogFragment
 
 @SuppressLint("ValidFragment")
 class PermissionDialog constructor(private val confirmListener: DialogInterface.OnClickListener?) :
-	DialogFragment() {
-	override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-		return AlertDialog.Builder(activity)
-			.setTitle("Ask Permission")
-			.setMessage("We need permissions, please!!!")
-			.setPositiveButton("Take it", confirmListener)
-			.create()
-	}
+  DialogFragment() {
+  override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+    return AlertDialog.Builder(activity)
+      .setTitle("Ask Permission")
+      .setMessage("We need permissions, please!!!")
+      .setPositiveButton("Take it", confirmListener)
+      .create()
+  }
 }
