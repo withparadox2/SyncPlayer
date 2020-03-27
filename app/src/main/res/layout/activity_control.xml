@@ -36,6 +36,12 @@
                     android:layout_height="wrap_content"
                     android:layout_marginLeft="10dp"
                     android:text="Reset" />
+                <Button
+                    android:id="@+id/btn_test_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="10dp"
+                    android:text="Time" />
             </LinearLayout>
 
             <EditText

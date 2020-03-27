@@ -2,6 +2,8 @@ package com.withparadox2.syncplayer
 
 import android.content.Context
 import android.media.MediaPlayer
+import android.os.Build
+import androidx.annotation.RequiresApi
 import java.io.IOException
 
 class PlayManager(context: Context, private val delegate: PlayerDelegate) :
@@ -55,6 +57,7 @@ class PlayManager(context: Context, private val delegate: PlayerDelegate) :
     isPaused = false
   }
 
+  @RequiresApi(Build.VERSION_CODES.O)
   fun seekPosition(millis: Int) {
     player.seekTo(millis)
   }

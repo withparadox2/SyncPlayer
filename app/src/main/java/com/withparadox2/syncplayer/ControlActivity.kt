@@ -11,7 +11,6 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.StateListDrawable
 import android.os.Bundle
 import android.os.Handler
-import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
@@ -131,6 +130,21 @@ open class ControlActivity : AppCompatActivity() {
 
     playLayout = findViewById(R.id.layout_playlist)
     addPlayListView()
+    findViewById<View>(R.id.btn_test_time).setOnClickListener {
+      lastSendTime = System.currentTimeMillis()
+//      sendMessage("time_request")
+      playerManager.seekPosition(5000)
+//      start2()
+//      handler.post(checkPositionAction)
+      addMessage("after seek ${playerManager.currentPosition}")
+      handler.postDelayed(object :Runnable{
+        override fun run() {
+
+          addMessage("position after 8000 = ${playerManager.currentPosition} cost = ${System.currentTimeMillis() - lastSendTime}")
+        }
+
+      }, 3000)
+    }
   }
 
   private fun reset() {
@@ -143,6 +157,9 @@ open class ControlActivity : AppCompatActivity() {
   }
 
   private fun addMessage(message: String) {
+//    if (messageStr.length > 500) {
+//      messageStr.clear()
+//    }
     messageStr.append("\n")
     messageStr.append(message)
     runOnUiThread {
@@ -188,10 +205,12 @@ open class ControlActivity : AppCompatActivity() {
 
           override fun onDisconnected() {
             addMessage("onDisconnected")
+//            handler.removeCallbacks(checkRttAction)
           }
 
           override fun onConnected(device: BluetoothDevice) {
             addMessage("onConnected ${device.name} ${device.address}")
+//            handler.post(checkRttAction)
           }
 
           override fun onReadMessage(message: String) {
@@ -344,7 +363,8 @@ open class ControlActivity : AppCompatActivity() {
     }
     updateView()
   }
-
+  fun start2() {
+  }
   fun start() {
     runOnUiThread {
       Toast.makeText(this, "start", Toast.LENGTH_SHORT).show()
@@ -352,21 +372,37 @@ open class ControlActivity : AppCompatActivity() {
 
     playerManager.resume()
 
-    if (!isClient) {
-      handler.postDelayed(checkPositionAction, 300)
+    if (isClient) {
+      handler.postDelayed(checkPositionAction, 500)
     }
+//    handler.postDelayed(object :Runnable {
+//      override fun run() {
+//        addMessage("seek position ${playerManager.currentPosition}")
+//      }
+//    }, 300)
   }
 
   private val checkPositionAction = object : Runnable {
     override fun run() {
       addMessage("position = " + playerManager.currentPosition)
-      sendMessage("check#" + playerManager.currentPosition)
-      handler.postDelayed(this, 300)
+      sendMessage("request_position")
+      lastSendTime = System.currentTimeMillis()
+//      handler.postDelayed(this, 500)
+    }
+  }
+
+  private val checkRttAction = object : Runnable {
+    override fun run() {
+      lastSendTime = System.currentTimeMillis()
+      sendMessage("time_request")
+      handler.postDelayed(this, 1000)
     }
   }
 
   private var lastOffset = 0
   private var lastAppend = 0
+  private var lastSendTime = 0L
+  private var rtt = -1L
 
   private fun parseMessage(message: String) {
     when {
@@ -377,23 +413,31 @@ open class ControlActivity : AppCompatActivity() {
       message == "stop_sync" -> {
         handler.removeCallbacks(checkPositionAction)
       }
+      message == "request_position" -> {
+        sendMessage("check#" + playerManager.currentPosition)
+      }
+      message == "time_request" -> {
+        sendMessage("time_response")
+        addMessage("time_request")
+      }
+      message == "time_response" -> {
+        val curRtt = (System.currentTimeMillis() - lastSendTime)
+//        if (rtt < 0) {
+//          rtt = curRtt
+//        } else {
+//          rtt = (rtt * 0.3f + curRtt * 0.7).toLong()
+//        }
+        rtt = curRtt
+        addMessage("time_response curRtt = $curRtt rtt = $rtt")
+      }
       message.startsWith("check") -> {
-        val position = message.substring(6).toInt() + 70
-        addMessage("remote $position local ${playerManager.currentPosition}")
+        val rtt = System.currentTimeMillis() - lastSendTime
+        val position : Int = (message.substring(6).toInt() + (rtt / 2 + 200)).toInt()
+        addMessage("remote ${message.substring(6)} local ${playerManager.currentPosition} rtt = $rtt" )
         val offset = position - playerManager.currentPosition
-        if (abs(offset) > 10) {
-          if (offset > 0) {
-            lastAppend += 10
-          } else {
-            lastAppend -= 10
-          }
+        playerManager.seekPosition(position)
+        addMessage("local ${playerManager.currentPosition}" )
 
-          addMessage("append = $lastAppend")
-          playerManager.seekPosition(position + lastAppend)
-          lastOffset = offset
-        } else {
-          sendMessage("stop_sync")
-        }
       }
       else -> {
         controlPlayId = null
