@@ -9,7 +9,6 @@
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
   <uses-permission android:name="android.permission.INTERNET" />
 
-
   <application
     android:allowBackup="true"
     android:icon="@mipmap/ic_launcher"
@@ -17,12 +16,14 @@
     android:roundIcon="@mipmap/ic_launcher_round"
     android:supportsRtl="true"
     android:theme="@style/AppTheme"
+    android:usesCleartextTraffic="true"
     tools:ignore="GoogleAppIndexingWarning">
-    <activity android:name=".ControlActivity" />
-    <activity android:name=".HomeActivity" />
+    <activity
+      android:name=".HomeActivity"
+      android:theme="@style/FullScreen" />
     <activity
       android:name=".SlashActivity"
-      android:theme="@style/AppTheme.FullScreen">
+      android:theme="@style/FullScreen">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
         <category android:name="android.intent.category.LAUNCHER" />

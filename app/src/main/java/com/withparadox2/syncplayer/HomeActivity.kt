@@ -2,7 +2,11 @@ package com.withparadox2.syncplayer
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
+import android.graphics.Color
+import android.os.Bundle
 import android.os.Handler
+import android.util.Log
+import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -29,9 +33,13 @@ class HomeActivity : AppCompatActivity() {
   private var curPlayIndex: Int? = null
   private lateinit var playManager: PlayManager
 
+  private var isDraggingSeekBar = false
+
   private val bleManager = BleManager(this, object : BleManager.Delegate {
     override fun onReceiveMessage(isServer: Boolean, message: String, device: BluetoothDevice?) {
-      syncHelper.onReceiveMessage(isServer, message, device)
+      handler.post {
+        syncHelper.onReceiveMessage(isServer, message, device)
+      }
     }
 
     override fun onStateChange(state: String) {
@@ -42,8 +50,8 @@ class HomeActivity : AppCompatActivity() {
   private val handler = Handler()
   private val syncHelper = SyncHelper()
 
-  override fun setContentView(view: View?) {
-    super.setContentView(view)
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
     setContentView(R.layout.activity_home)
 
     playManager = PlayManager(this, object : PlayManager.PlayerDelegate {
@@ -102,28 +110,36 @@ class HomeActivity : AppCompatActivity() {
 
     seekBar.max = 1000
     seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-      override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-        if (playManager.getDuration() > 0) {
-          val percent = progress / seekBar.max
-          val playPosition: Int = (percent * playManager.getDuration())
 
-          if (fromUser) {
-            if (bleManager.isClientReady()) {
-              syncHelper.wantToSeekPosition(playPosition)
-            } else {
-              playManager.seekPosition(playPosition)
-              if (bleManager.isServerReady()) {
-                syncHelper.requestSeekTo(playPosition)
-              }
-            }
-          }
+      private fun calPlayPosition(): Int {
+        val percent = seekBar.progress.toFloat() / seekBar.max
+        return ((percent * playManager.getDuration()).toInt())
+      }
+
+      override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+        if (fromUser) {
+          tvLeftTime.text = formatTime(calPlayPosition())
         }
       }
 
       override fun onStartTrackingTouch(seekBar: SeekBar?) {
+        isDraggingSeekBar = true
       }
 
-      override fun onStopTrackingTouch(seekBar: SeekBar?) {
+      override fun onStopTrackingTouch(seekBar: SeekBar) {
+        isDraggingSeekBar = false
+
+        if (playManager.getDuration() > 0) {
+          val playPosition: Int = calPlayPosition()
+          if (bleManager.isClientReady()) {
+            syncHelper.wantToSeekPosition(playPosition)
+          } else {
+            playManager.seekPosition(playPosition)
+            if (bleManager.isServerReady()) {
+              syncHelper.requestSeekTo(playPosition)
+            }
+          }
+        }
       }
     })
   }
@@ -138,6 +154,8 @@ class HomeActivity : AppCompatActivity() {
       val textView = TextView(this@HomeActivity)
       textView.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 120)
       textView.setPadding(60, 0, 60, 0)
+      textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+      textView.setTextColor(Color.BLACK)
       textView.setOnClickListener(onClickListener)
       return SongViewHolder(textView)
     }
@@ -230,7 +248,7 @@ class HomeActivity : AppCompatActivity() {
   }
 
   private fun startPlay() {
-    topBar.isEnabled = true
+    seekBar.isEnabled = true
     playManager.resume()
     startTick()
     updatePlayState()
@@ -248,9 +266,12 @@ class HomeActivity : AppCompatActivity() {
     override fun run() {
       if (playManager.getDuration() != 0) {
         val percent = playManager.currentPosition.toFloat() / playManager.getDuration()
-        seekBar.progress = (percent * 1000).toInt()
+
+        if (!isDraggingSeekBar) {
+          seekBar.progress = (percent * 1000).toInt()
+          tvLeftTime.text = formatTime(playManager.currentPosition)
+        }
       }
-      tvLeftTime.text = formatTime(playManager.currentPosition)
       handler.postDelayed(this, 1000)
     }
   }
@@ -277,7 +298,9 @@ class HomeActivity : AppCompatActivity() {
     val lastServerPrepareRequestId = AtomicInteger(0)
 
     fun onReceiveMessage(isServer: Boolean, message: String?, device: BluetoothDevice? = null) {
-      if (message == null || message.indexOf("$") < 0) {
+      log("receive message = $message")
+
+      if (message == null || message.indexOf("#") < 0) {
         return
       }
 
@@ -350,8 +373,10 @@ class HomeActivity : AppCompatActivity() {
                 wantToKnowCurrentPosition()
               }, 500)
             } else {
-              lastSendTime = System.currentTimeMillis()
-              wantToKnowCurrentPosition()
+              handler.postDelayed({
+                lastSendTime = System.currentTimeMillis()
+                wantToKnowCurrentPosition()
+              }, 500)
             }
           }
         }
@@ -364,6 +389,7 @@ class HomeActivity : AppCompatActivity() {
         // Server request to prepare, client should answer Client-6 to server if ready
         3 -> {
           if (curPlayIndex != msgSongIndex) {
+            lastServerPrepareRequestId.set(content.toInt())
             pauseOrPlay(msgSongIndex, false)
           }
         }
@@ -378,6 +404,7 @@ class HomeActivity : AppCompatActivity() {
           if (curPlayIndex == msgSongIndex) {
             val serverPosition = content.toInt()
             val ttr = System.currentTimeMillis() - lastSendTime
+            log("ttr = $ttr, prepareTime = $prepareTime")
             val newPosition: Int = (serverPosition + ttr / 2 + prepareTime!!).toInt()
             seekTo(newPosition)
           }
@@ -399,7 +426,7 @@ class HomeActivity : AppCompatActivity() {
     }
 
     fun requestPrepare() {
-      val id = lastServerPrepareRequestId.getAndIncrement()
+      val id = lastServerPrepareRequestId.incrementAndGet()
       answeredDeviceList.clear()
       curPlayIndex?.let {
         sendMessage(3, 0, it, "$id")
@@ -437,7 +464,7 @@ class HomeActivity : AppCompatActivity() {
 
     fun wantToSeekPosition(position: Int) {
       curPlayIndex?.let {
-        sendMessage(0, 4, it)
+        sendMessage(0, 4, it, "$position")
       }
     }
 
@@ -449,7 +476,7 @@ class HomeActivity : AppCompatActivity() {
 
     fun tellPrepared() {
       curPlayIndex?.let {
-        sendMessage(0, 6, it)
+        sendMessage(0, 6, it, "${lastServerPrepareRequestId.get()}")
       }
     }
 
@@ -460,7 +487,12 @@ class HomeActivity : AppCompatActivity() {
       message: String = "",
       device: BluetoothDevice? = null
     ) {
-      bleManager.sendMessage("$command#$subCommand#$songIndex$message", device)
+      log("send message = $command#$subCommand#$songIndex#$message")
+      bleManager.sendMessage("$command#$subCommand#$songIndex#$message", device)
     }
+  }
+
+  fun log(message: String) {
+    Log.d("[HomeActivity]", message)
   }
 }

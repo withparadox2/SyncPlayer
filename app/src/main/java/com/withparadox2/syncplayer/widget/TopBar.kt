@@ -1,12 +1,14 @@
 package com.withparadox2.syncplayer.widget
 
 import android.content.Context
+import android.util.AttributeSet
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.withparadox2.syncplayer.R
 
-class TopBar(context: Context) : LinearLayout(context), View.OnClickListener {
+class TopBar(context: Context, attributes: AttributeSet?, defStyleAttr: Int, defStyleRes: Int) :
+  LinearLayout(context, attributes, defStyleAttr, defStyleRes), View.OnClickListener {
   lateinit var tvState: TextView
 
   private lateinit var decorLine: View
@@ -18,6 +20,23 @@ class TopBar(context: Context) : LinearLayout(context), View.OnClickListener {
   private var delegate: Delegate? = null
 
   private var isStart: Boolean = false
+
+  constructor(context: Context, attributes: AttributeSet?, defStyleAttr: Int) : this(
+    context,
+    attributes,
+    defStyleAttr,
+    0
+  )
+
+  constructor(context: Context, attributes: AttributeSet?) : this(
+    context,
+    attributes,
+    0
+  )
+
+  constructor(context: Context) : this(
+    context, null
+  )
 
   fun getShowHeight(): Int {
     return measuredHeight - tvState.top
@@ -44,13 +63,13 @@ class TopBar(context: Context) : LinearLayout(context), View.OnClickListener {
 
   fun checkServer() {
     isCheckedServer = true
-    decorLine.animate().translationX((tvClient.left - tvServer.left).toFloat()).setDuration(300)
+    decorLine.animate().translationX(0f).setDuration(300)
       .start()
   }
 
   fun checkClient() {
     isCheckedServer = false
-    decorLine.animate().translationX(0f).setDuration(300).start()
+    decorLine.animate().translationX((tvClient.left - tvServer.left).toFloat()).setDuration(300).start()
   }
 
   override fun onClick(v: View?) {

@@ -66,6 +66,7 @@ class PlayManager(context: Context, private val delegate: PlayerDelegate) :
   }
 
   override fun onCompletion(mp: MediaPlayer) {
+    delegate.onCompletion()
   }
 
   override fun onPrepared(mp: MediaPlayer) {

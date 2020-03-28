@@ -3,16 +3,35 @@ package com.withparadox2.syncplayer.widget
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.content.Context
+import android.util.AttributeSet
 import android.view.View
 import android.widget.FrameLayout
 import com.withparadox2.syncplayer.R
 
-class HomeLayout(context: Context) : FrameLayout(context), View.OnClickListener {
+class HomeLayout(context: Context, attributes: AttributeSet?, defStyleAttr: Int, defStyleRes: Int) :
+  FrameLayout(context, attributes, defStyleAttr, defStyleRes), View.OnClickListener {
   private lateinit var topBar: TopBar
   private lateinit var listView: View
   private lateinit var controller: View
   private lateinit var cover: View
   private var isInit = false
+
+  constructor(context: Context, attributes: AttributeSet?, defStyleAttr: Int) : this(
+    context,
+    attributes,
+    defStyleAttr,
+    0
+  )
+
+  constructor(context: Context, attributes: AttributeSet?) : this(
+    context,
+    attributes,
+    0
+  )
+
+  constructor(context: Context) : this(
+    context, null
+  )
 
   override fun onFinishInflate() {
     super.onFinishInflate()
@@ -34,20 +53,21 @@ class HomeLayout(context: Context) : FrameLayout(context), View.OnClickListener 
   }
 
   fun showTopBar() {
+    if (cover.visibility == View.VISIBLE) {
+      return
+    }
     topBar.animate().translationY(0f).setDuration(300)
       .setListener(object : AnimatorListenerAdapter() {
 
       }).start()
     cover.alpha = 0f
     cover.visibility = View.VISIBLE
-    cover.animate().alpha(0.8f).setDuration(300).start()
+    cover.animate().setListener(null).alpha(0.8f).setDuration(300).start()
   }
 
   fun hideTopBar() {
     topBar.animate().translationY(topBar.getDefaultTranslate().toFloat()).setDuration(300)
-      .setListener(object : AnimatorListenerAdapter() {
-
-      }).start()
+      .setListener(null).start()
     cover.animate().alpha(0f).setDuration(300)
       .setListener(object : AnimatorListenerAdapter() {
         override fun onAnimationEnd(animation: Animator?) {
@@ -64,6 +84,7 @@ class HomeLayout(context: Context) : FrameLayout(context), View.OnClickListener 
       controller.translationY = controller.height.toFloat()
       topBar.translationY = topBar.getDefaultTranslate().toFloat()
       (listView.layoutParams as LayoutParams).topMargin = topBar.getShowHeight()
+      listView.requestLayout()
     }
   }
 
