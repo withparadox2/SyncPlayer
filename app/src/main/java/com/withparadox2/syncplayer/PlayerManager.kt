@@ -2,14 +2,13 @@ package com.withparadox2.syncplayer
 
 import android.content.Context
 import android.media.MediaPlayer
-import android.os.Build
-import androidx.annotation.RequiresApi
 import java.io.IOException
 
 class PlayManager(context: Context, private val delegate: PlayerDelegate) :
   MediaPlayer.OnCompletionListener, MediaPlayer.OnPreparedListener {
 
 
+  var isPrepared = false
   private val player: MediaPlayer = MediaPlayer()
 
   var isPaused = false
@@ -31,6 +30,7 @@ class PlayManager(context: Context, private val delegate: PlayerDelegate) :
 
   fun play(path: String) {
     try {
+      isPrepared = false
       player.reset()
       player.setDataSource(path)
       player.prepareAsync()
@@ -69,7 +69,12 @@ class PlayManager(context: Context, private val delegate: PlayerDelegate) :
   }
 
   override fun onPrepared(mp: MediaPlayer) {
+    isPrepared = true
     delegate.onPrepared()
+  }
+
+  fun getDuration(): Int {
+    return if (isPrepared) player.duration else 0
   }
 
   interface PlayerDelegate {

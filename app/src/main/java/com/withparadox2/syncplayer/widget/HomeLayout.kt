@@ -16,8 +16,8 @@ class HomeLayout(context: Context) : FrameLayout(context), View.OnClickListener 
 
   override fun onFinishInflate() {
     super.onFinishInflate()
-    topBar = findViewById(R.id.topBar)
-    listView = findViewById(R.id.listview)
+    topBar = findViewById(R.id.top_bar)
+    listView = findViewById(R.id.listview_songs)
     controller = findViewById(R.id.controller)
     cover = findViewById(R.id.cover)
 

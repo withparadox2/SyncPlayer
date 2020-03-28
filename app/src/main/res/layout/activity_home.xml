@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.withparadox2.syncplayer.widget.HomeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/layout_home"
   android:layout_width="match_parent"
   android:layout_height="match_parent"
   android:background="@color/white"
   android:orientation="vertical">
 
   <androidx.recyclerview.widget.RecyclerView
-    android:id="@+id/listview"
+    android:id="@+id/listview_songs"
     android:layout_width="match_parent"
     android:layout_height="match_parent" />
 
@@ -15,7 +16,59 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_gravity="bottom"
-    android:orientation="vertical" />
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <FrameLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content">
+
+      <TextView
+        android:id="@+id/tv_song_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="left|center_vertical"
+        android:textColor="@color/black"
+        android:textSize="16sp" />
+
+      <ImageView
+        android:id="@+id/btn_play_controller"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_gravity="right|center_vertical"
+        android:src="@drawable/icon_pause" />
+    </FrameLayout>
+
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="15dp"
+      android:gravity="center_vertical"
+      android:orientation="horizontal">
+
+      <TextView
+        android:id="@+id/tv_left_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="8dp"
+        android:textColor="@color/black"
+        android:textSize="13sp" />
+
+      <androidx.appcompat.widget.AppCompatSeekBar
+        android:id="@+id/seek_bar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1" />
+
+      <TextView
+        android:id="@+id/tv_right_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="8dp"
+        android:textColor="@color/black"
+        android:textSize="13sp" />
+    </LinearLayout>
+  </LinearLayout>
 
   <View
     android:id="@+id/cover"
@@ -24,16 +77,71 @@
     android:background="@color/black"
     android:visibility="gone" />
 
-  <FrameLayout
-    android:id="@+id/topBar"
+  <com.withparadox2.syncplayer.widget.TopBar
+    android:id="@+id/top_bar"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_gravity="top">
+    android:layout_gravity="top"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <RelativeLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="horizontal">
+
+      <TextView
+        android:id="@+id/tv_server"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/server"
+        android:textColor="@color/black"
+        android:textSize="16sp" />
+
+      <TextView
+        android:id="@+id/tv_client"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="18dp"
+        android:layout_toRightOf="@id/tv_server"
+        android:text="@string/client"
+        android:textColor="@color/black"
+        android:textSize="16sp" />
+
+      <TextView
+        android:id="@+id/tv_controller"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@id/tv_client"
+        android:layout_alignBottom="@id/tv_client"
+        android:layout_alignParentRight="true"
+        android:text="@string/start_up"
+        android:textColor="@color/black"
+        android:textSize="14sp" />
+
+      <View
+        android:id="@+id/decor_line"
+        android:layout_width="wrap_content"
+        android:layout_height="2dp"
+        android:layout_below="@id/tv_client"
+        android:layout_alignLeft="@id/tv_server"
+        android:layout_alignRight="@id/tv_server"
+        android:layout_marginTop="4dp"
+        android:background="@color/black" />
+    </RelativeLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+      android:id="@+id/listview_bluetooth"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="15dp" />
 
     <TextView
       android:id="@+id/tv_state"
       android:layout_width="wrap_content"
-      android:layout_height="wrap_content"/>
-
-  </FrameLayout>
+      android:layout_height="wrap_content"
+      android:drawableStart="@drawable/ic_bluetooth"
+      android:drawablePadding="5dp"
+      android:paddingTop="15dp" />
+  </com.withparadox2.syncplayer.widget.TopBar>
 </com.withparadox2.syncplayer.widget.HomeLayout>

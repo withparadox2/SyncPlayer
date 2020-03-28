@@ -22,11 +22,12 @@ class Client(
 ) {
   private val handler = Handler()
   private var bluetoothGatt: BluetoothGatt? = null
-  private var curDevice: BluetoothDevice? = null
+  var curDevice: BluetoothDevice? = null
   private var readCharacteristic: BluetoothGattCharacteristic? = null
   private var writeCharacteristic: BluetoothGattCharacteristic? = null
 
   var isScanning = false
+  var isConnectedServer = false
 
   fun scan() {
     if (isScanning) {
@@ -41,14 +42,16 @@ class Client(
       ScanSettings.Builder().build(),
       scanCallback
     )
-    handler.postDelayed({
-      bltAdapter.bluetoothLeScanner.stopScan(scanCallback)
-      delegate.onStopScan()
-      isScanning = false
-      log("Stop scan")
-    }, 100000)
+    handler.postDelayed(stopScanAction, 100000)
     delegate.onStartScan()
     log("Start scan")
+  }
+
+  private val stopScanAction = Runnable {
+    bltAdapter.bluetoothLeScanner.stopScan(scanCallback)
+    delegate.onStopScan()
+    isScanning = false
+    log("Stop scan")
   }
 
   private val scanCallback = object : ScanCallback() {
@@ -99,6 +102,7 @@ class Client(
         bluetoothGatt!!.discoverServices()
       } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
         delegate.onDisconnected()
+        isConnectedServer = false
       }
 
       log("#onConnectionStateChange newState: $newState")
@@ -108,10 +112,14 @@ class Client(
       if (status == BluetoothGatt.GATT_SUCCESS) {
         try {
           initCharacteristic()
+          isConnectedServer = true
+          delegate.onConnected(curDevice!!)
         } catch (e: Exception) {
           log("#onServicesDiscovered error ${e.message}", e = e)
+          delegate.onNotConnected(curDevice!!)
         }
-        delegate.onConnected(curDevice!!)
+      } else {
+        delegate.onNotConnected(curDevice!!)
       }
       log("#onServicesDiscovered: status = $status")
     }
@@ -151,6 +159,10 @@ class Client(
     writeCharacteristic = null
     readCharacteristic = null
     curDevice = null
+    if (isScanning) {
+      stopScanAction.run()
+    }
+    handler.removeCallbacks(stopScanAction)
   }
 
   fun log(message: String, show: Boolean = true, e: Exception? = null) {
@@ -167,6 +179,7 @@ class Client(
     fun onStopScan()
     fun onAddDevice(device: BluetoothDevice)
     fun onDisconnected()
+    fun onNotConnected(device: BluetoothDevice)
     fun onConnected(device: BluetoothDevice)
     fun onReadMessage(message: String)
     fun onLog(log: String)

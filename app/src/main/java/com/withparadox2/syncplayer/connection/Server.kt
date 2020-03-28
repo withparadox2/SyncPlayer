@@ -31,7 +31,7 @@ class Server(
   private var characteristicRead: BluetoothGattCharacteristic? = null
   private var bluetoothGattServer: BluetoothGattServer? = null
 
-  private val deviceList = ArrayList<BluetoothDevice>()
+  val deviceList = ArrayList<BluetoothDevice>()
 
   fun initServer() {
     val settings = AdvertiseSettings.Builder()
@@ -111,6 +111,11 @@ class Server(
 
     override fun onServiceAdded(status: Int, service: BluetoothGattService) {
       log("#onServiceAdded：status = $status")
+      if (status == BluetoothGatt.GATT_SUCCESS) {
+        delegate.onStartSuccess()
+      } else {
+        delegate.onStartFailed()
+      }
     }
 
     override fun onCharacteristicReadRequest(
@@ -214,14 +219,29 @@ class Server(
     log("#close")
   }
 
-  fun sendMessage(message: String): Boolean {
+  fun sendMessage(message: String, device: BluetoothDevice?): Boolean {
     if (characteristicRead != null && bluetoothGattServer != null) {
       characteristicRead!!.value = message.toByteArray()
       var result = true
-      deviceList.forEach {
+
+      if (device != null) {
         result =
-          result && bluetoothGattServer!!.notifyCharacteristicChanged(it, characteristicRead, false)
+          result && bluetoothGattServer!!.notifyCharacteristicChanged(
+            device,
+            characteristicRead,
+            false
+          )
+      } else {
+        deviceList.forEach {
+          result =
+            result && bluetoothGattServer!!.notifyCharacteristicChanged(
+              it,
+              characteristicRead,
+              false
+            )
+        }
       }
+
       return result
     }
     return false
@@ -243,5 +263,7 @@ class Server(
     fun onLog(message: String)
     fun onConnectedStateChanged(device: BluetoothDevice, isAdd: Boolean)
     fun onReceiveMessage(device: BluetoothDevice, message: String)
+    fun onStartSuccess()
+    fun onStartFailed()
   }
 }
