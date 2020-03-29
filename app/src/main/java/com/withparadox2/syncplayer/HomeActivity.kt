@@ -1,8 +1,10 @@
 package com.withparadox2.syncplayer
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.content.Context
+import android.content.DialogInterface
 import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
@@ -57,6 +59,8 @@ class HomeActivity : AppCompatActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.activity_home)
+
+    checkPermission()
 
     playManager = PlayManager(this, object : PlayManager.PlayerDelegate {
       override fun onCompletion() {
@@ -633,5 +637,46 @@ class HomeActivity : AppCompatActivity() {
     runOnUiThread {
       Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
+  }
+
+  override fun onRequestPermissionsResult(
+    requestCode: Int,
+    permissions: Array<out String>,
+    grantResults: IntArray
+  ) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    PermissionManager.instance.handlePermissionResult(requestCode, permissions, grantResults)
+  }
+
+  private fun checkPermission() {
+    if (!PermissionManager.instance.hasPermission(
+        this,
+        Manifest.permission.WRITE_EXTERNAL_STORAGE,
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_COARSE_LOCATION
+      )
+    ) {
+      PermissionDialog(DialogInterface.OnClickListener { _, _ ->
+        requestPermission()
+      }).show(supportFragmentManager, "permission")
+    }
+  }
+
+  private fun requestPermission() {
+    PermissionManager.instance.requestPermission(
+      this,
+      object : PermissionManager.PermissionCallback {
+        override fun onDenied() {
+          toast("SyncPlayer can not work without necessary permissions")
+          finish()
+        }
+
+        override fun onGranted() {
+        }
+      },
+      Manifest.permission.WRITE_EXTERNAL_STORAGE,
+      Manifest.permission.ACCESS_FINE_LOCATION,
+      Manifest.permission.ACCESS_COARSE_LOCATION
+    )
   }
 }
