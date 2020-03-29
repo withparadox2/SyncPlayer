@@ -48,6 +48,7 @@ class TopBar(context: Context, attributes: AttributeSet?, defStyleAttr: Int, def
 
   override fun onFinishInflate() {
     super.onFinishInflate()
+    setOnClickListener(this)
     tvState = findViewById(R.id.tv_state)
     decorLine = findViewById(R.id.decor_line)
     tvServer = findViewById(R.id.tv_server)
@@ -69,7 +70,8 @@ class TopBar(context: Context, attributes: AttributeSet?, defStyleAttr: Int, def
 
   fun checkClient() {
     isCheckedServer = false
-    decorLine.animate().translationX((tvClient.left - tvServer.left).toFloat()).setDuration(300).start()
+    decorLine.animate().translationX((tvClient.left - tvServer.left).toFloat()).setDuration(300)
+      .start()
   }
 
   override fun onClick(v: View?) {

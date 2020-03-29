@@ -4,12 +4,10 @@ import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.Intent
-import android.util.Log
 import android.widget.Toast
 import java.util.*
-import kotlin.collections.ArrayList
 
-private const val RC_ENABLE_BLE = 0
+const val RC_ENABLE_BLE = 1
 
 class BleManager(private val activity: Activity, private val delegate: Delegate) {
   private var bltAdapter: BluetoothAdapter? = null
@@ -27,7 +25,8 @@ class BleManager(private val activity: Activity, private val delegate: Delegate)
     this.isServer = isServer
     if (!isReady) {
       setupBluetooth()
-      return
+    } else {
+      onAdapterReady()
     }
   }
 
@@ -38,6 +37,7 @@ class BleManager(private val activity: Activity, private val delegate: Delegate)
     addressSet.clear()
 
     server?.close()
+    delegate.onStateChange("未开启")
   }
 
   //TODO React to close and open action of bluetooth

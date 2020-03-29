@@ -2,9 +2,11 @@ package com.withparadox2.syncplayer
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.content.DialogInterface
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
@@ -21,6 +23,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.withparadox2.syncplayer.connection.BleManager
+import com.withparadox2.syncplayer.connection.RC_ENABLE_BLE
 import com.withparadox2.syncplayer.widget.HomeLayout
 import com.withparadox2.syncplayer.widget.TopBar
 import java.util.concurrent.atomic.AtomicInteger
@@ -302,6 +305,13 @@ class HomeActivity : AppCompatActivity() {
         }
       }
       handler.postDelayed(this, 1000)
+    }
+  }
+
+  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    if (requestCode == RC_ENABLE_BLE && resultCode == Activity.RESULT_OK) {
+      bleManager.onAdapterReady()
     }
   }
 
