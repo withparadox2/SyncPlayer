@@ -2,9 +2,12 @@ package com.withparadox2.syncplayer
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
+import android.content.Context
+import android.content.SharedPreferences
 import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
+import android.text.TextUtils
 import android.util.Log
 import android.util.TypedValue
 import android.view.View
@@ -12,6 +15,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -19,6 +23,7 @@ import com.withparadox2.syncplayer.connection.BleManager
 import com.withparadox2.syncplayer.widget.HomeLayout
 import com.withparadox2.syncplayer.widget.TopBar
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.absoluteValue
 
 class HomeActivity : AppCompatActivity() {
   lateinit var topBar: TopBar
@@ -105,6 +110,17 @@ class HomeActivity : AppCompatActivity() {
       }
     }
 
+    tvSongTitle.setOnClickListener {
+      curPlayIndex?.let {
+        syncHelper.resetPrepareTime()
+      }
+    }
+
+    tvSongTitle.setOnLongClickListener {
+      syncHelper.storePrepareTime()
+      return@setOnLongClickListener true
+    }
+
     rvSongs.adapter = SongsAdapter()
     rvSongs.layoutManager = LinearLayoutManager(this)
 
@@ -152,8 +168,9 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SongViewHolder {
       val textView = TextView(this@HomeActivity)
-      textView.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 120)
-      textView.setPadding(60, 0, 60, 0)
+      textView.setPadding(60, 15, 60, 15)
+      textView.ellipsize = TextUtils.TruncateAt.END
+      textView.maxLines = 2
       textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
       textView.setTextColor(Color.BLACK)
       textView.setOnClickListener(onClickListener)
@@ -233,6 +250,7 @@ class HomeActivity : AppCompatActivity() {
         curPlayIndex = index
         tvSongTitle.text = songItem.second
         playManager.play("https://music.163.com/song/media/outer/url?id=${songItem.first}.mp3")
+        seekBar.progress = 0
         seekBar.isEnabled = false
       }
     }
@@ -363,21 +381,7 @@ class HomeActivity : AppCompatActivity() {
         1 -> {
           if (curPlayIndex == msgSongIndex) {
             startPlay()
-
-            if (prepareTime == null) {
-              val startResumePosition = playManager.currentPosition
-              handler.postDelayed({
-                prepareTime = startResumePosition + 500 - playManager.currentPosition
-
-                lastSendTime = System.currentTimeMillis()
-                wantToKnowCurrentPosition()
-              }, 500)
-            } else {
-              handler.postDelayed({
-                lastSendTime = System.currentTimeMillis()
-                wantToKnowCurrentPosition()
-              }, 500)
-            }
+            doSync()
           }
         }
         // Server request to pause
@@ -397,6 +401,9 @@ class HomeActivity : AppCompatActivity() {
         4 -> {
           if (curPlayIndex == msgSongIndex) {
             seekTo(content.toInt())
+            if (playManager.isPlaying) {
+              doSync()
+            }
           }
         }
         // Server answer request of Client-5
@@ -409,6 +416,51 @@ class HomeActivity : AppCompatActivity() {
             seekTo(newPosition)
           }
         }
+      }
+    }
+
+    fun resetPrepareTime() {
+      prepareTime = 0
+      if (playManager.isPlaying) {
+        // seekTo has the same effect as resume, both will take some time to start play actually
+        // we only want to do sync while playing, postpone otherwise
+        seekTo(playManager.currentPosition)
+        doSync()
+      }
+    }
+
+    fun storePrepareTime() {
+      prepareTime?.let {
+        val sp = (this@HomeActivity).getSharedPreferences("sync_player", Context.MODE_PRIVATE)
+        sp.edit().putInt("prepare_time", it).apply()
+        toast("Save prepare time $it")
+      }
+    }
+
+    fun restorePrepareTime() {
+      val sp = (this@HomeActivity).getSharedPreferences("sync_player", Context.MODE_PRIVATE)
+      prepareTime = sp.getInt("prepare_time", 0)
+    }
+
+    fun doSync() {
+      if (prepareTime == null) {
+        restorePrepareTime()
+      }
+      if (prepareTime == null || prepareTime == 0) {
+        val startResumePosition = playManager.currentPosition
+        // We assume the latency will not exceed 500ms in all situations, smaller one may not
+        // be sufficient to calculate the correct latency
+        handler.postDelayed({
+          prepareTime = startResumePosition + 500 - playManager.currentPosition
+
+          lastSendTime = System.currentTimeMillis()
+          wantToKnowCurrentPosition()
+        }, 500)
+      } else {
+        handler.postDelayed({
+          lastSendTime = System.currentTimeMillis()
+          wantToKnowCurrentPosition()
+        }, 500)
       }
     }
 
@@ -487,12 +539,19 @@ class HomeActivity : AppCompatActivity() {
       message: String = "",
       device: BluetoothDevice? = null
     ) {
-      log("send message = $command#$subCommand#$songIndex#$message")
-      bleManager.sendMessage("$command#$subCommand#$songIndex#$message", device)
+      val messageToSend = "$command#$subCommand#$songIndex#$message"
+      val result = bleManager.sendMessage(messageToSend, device)
+      log("send result = $result | message = $messageToSend")
     }
   }
 
   fun log(message: String) {
     Log.d("[HomeActivity]", message)
+  }
+
+  fun toast(message: String) {
+    runOnUiThread {
+      Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
   }
 }

@@ -146,12 +146,13 @@ class Client(
     }
   }
 
-  fun sendMessage(message: String) {
+  fun sendMessage(message: String): Boolean {
     if (bluetoothGatt != null && writeCharacteristic != null) {
       writeCharacteristic!!.setValue(message)
       writeCharacteristic!!.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-      bluetoothGatt!!.writeCharacteristic(writeCharacteristic)
+      return bluetoothGatt!!.writeCharacteristic(writeCharacteristic)
     }
+    return false
   }
 
   fun close() {

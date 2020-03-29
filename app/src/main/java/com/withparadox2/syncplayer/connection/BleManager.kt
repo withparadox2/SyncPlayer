@@ -4,6 +4,7 @@ import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.Intent
+import android.util.Log
 import android.widget.Toast
 import java.util.*
 import kotlin.collections.ArrayList
@@ -156,11 +157,11 @@ class BleManager(private val activity: Activity, private val delegate: Delegate)
     client?.connect(device)
   }
 
-  fun sendMessage(message: String, device: BluetoothDevice?) {
-    if (isServer) {
-      server?.sendMessage(message, device)
+  fun sendMessage(message: String, device: BluetoothDevice?): Boolean {
+    return if (isServer) {
+      server?.sendMessage(message, device) ?: false
     } else {
-      client?.sendMessage(message)
+      client?.sendMessage(message) ?: false
     }
   }
 
