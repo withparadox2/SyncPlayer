@@ -1,5 +1,11 @@
 package com.withparadox2.syncplayer
 
+//https://y.music.163.com/m/playlist?id=21141436
+
+//[...document.querySelectorAll('.m-sgitem:not(.m-sgitem-gray)')].map(function(item){
+//    return '"' + item.search.replace('?id=', '') + '" to "' + item.text.replace(/^\d*/, '') + '"'
+//}).join(",")
+
 val PlayList = listOf(
   "26427666" to "我说今晚月光那么美,你说是的好妹妹 - 南北",
   "29535531" to "历历万乡陈粒 - 未收录的单曲",
