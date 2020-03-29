@@ -32,6 +32,7 @@ class HomeActivity : AppCompatActivity() {
   lateinit var tvLeftTime: TextView
   lateinit var tvRightTime: TextView
   lateinit var seekBar: SeekBar
+  lateinit var tvMessageState: TextView
 
   private var curPlayIndex: Int? = null
   private lateinit var playManager: PlayManager
@@ -101,6 +102,7 @@ class HomeActivity : AppCompatActivity() {
     tvLeftTime = findViewById(R.id.tv_left_time)
     tvRightTime = findViewById(R.id.tv_right_time)
     seekBar = findViewById(R.id.seek_bar)
+    tvMessageState = findViewById(R.id.tv_message_state)
 
     ivPlayController.setOnClickListener {
       curPlayIndex?.let {
@@ -322,6 +324,7 @@ class HomeActivity : AppCompatActivity() {
 
     fun onReceiveMessage(isServer: Boolean, message: String?, device: BluetoothDevice? = null) {
       log("receive message = $message")
+      setMessageState(message, device, false)
 
       if (message == null || message.indexOf("#") < 0) {
         return
@@ -547,6 +550,78 @@ class HomeActivity : AppCompatActivity() {
       val messageToSend = "$command#$subCommand#$songIndex#$message"
       val result = bleManager.sendMessage(messageToSend, device)
       log("send result = $result | message = $messageToSend")
+      setMessageState(messageToSend, device, true)
+    }
+
+    @SuppressLint("SetTextI18n")
+    fun setMessageState(message: String?, device: BluetoothDevice?, isSend: Boolean) {
+      if (message == null || message.indexOf("#") < 0) {
+        return
+      }
+
+      val arr = message.split("#")
+      val msgSongIndex = arr[2].toInt()
+      val content = arr[3]
+
+      var showText = ""
+
+      when (arr[0].toInt()) {
+        // From Client
+        0 -> {
+          when (arr[1].toInt()) {
+            // Client request to resume
+            1 -> {
+              showText = "请求播放 ${PlayList[msgSongIndex].second}"
+            }
+            // Client request to pause
+            2 -> {
+              showText = "请求暂停 ${PlayList[msgSongIndex].second}"
+            }
+            // Client request to change song
+            3 -> {
+              showText = "请求切歌 ${PlayList[msgSongIndex].second}"
+            }
+            // Client request to seek to position
+            4 -> {
+              showText = "请求播放该位置 $content"
+            }
+            // Client request current position
+            5 -> {
+              showText = "请求当前播放位置"
+            }
+            // Client is answering Server-3
+            6 -> {
+              showText = "已准备好 ${device?.address ?: ""}"
+            }
+          }
+        }
+        // Server request to resume, client should sync
+        1 -> {
+          showText = "命令播放 ${PlayList[msgSongIndex].second}"
+        }
+        // Server request to pause
+        2 -> {
+          showText = "命令暂停 ${PlayList[msgSongIndex].second}"
+        }
+        // Server request to prepare, client should answer Client-6 to server if ready
+        3 -> {
+          showText = "命令准备切歌 ${PlayList[msgSongIndex].second}"
+        }
+        // Server request to seek to position
+        4 -> {
+          showText = "命令播放位置 $content"
+        }
+        // Server answer request of Client-5
+        5 -> {
+          showText = "服务端当前播放位置 $content"
+        }
+      }
+
+      if (tvMessageState.visibility != View.VISIBLE) {
+        tvMessageState.visibility = View.VISIBLE
+      }
+
+      tvMessageState.text = "${if (isSend) "发送" else "收到"}$showText"
     }
   }
 
