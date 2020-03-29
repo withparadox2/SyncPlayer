@@ -163,6 +163,7 @@ class Client(
     if (isScanning) {
       stopScanAction.run()
     }
+    isConnectedServer = false
     handler.removeCallbacks(stopScanAction)
   }
 
