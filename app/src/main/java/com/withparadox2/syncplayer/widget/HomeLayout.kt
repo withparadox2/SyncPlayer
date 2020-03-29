@@ -79,11 +79,17 @@ class HomeLayout(context: Context, attributes: AttributeSet?, defStyleAttr: Int,
   override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
     super.onLayout(changed, left, top, right, bottom)
 
+    val lvParams = listView.layoutParams as LayoutParams
     if (!isInit) {
       isInit = true
       controller.translationY = controller.height.toFloat()
       topBar.translationY = topBar.getDefaultTranslate().toFloat()
-      (listView.layoutParams as LayoutParams).topMargin = topBar.getShowHeight()
+      lvParams.topMargin = topBar.getShowHeight()
+      listView.requestLayout()
+    }
+
+    if (lvParams.bottomMargin != 0 && lvParams.bottomMargin != controller.height) {
+      lvParams.bottomMargin = controller.height
       listView.requestLayout()
     }
   }
