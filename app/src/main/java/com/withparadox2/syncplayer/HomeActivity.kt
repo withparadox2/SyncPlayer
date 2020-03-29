@@ -3,7 +3,6 @@ package com.withparadox2.syncplayer
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.content.Context
-import android.content.SharedPreferences
 import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
@@ -23,7 +22,6 @@ import com.withparadox2.syncplayer.connection.BleManager
 import com.withparadox2.syncplayer.widget.HomeLayout
 import com.withparadox2.syncplayer.widget.TopBar
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.math.absoluteValue
 
 class HomeActivity : AppCompatActivity() {
   lateinit var topBar: TopBar
@@ -62,7 +60,7 @@ class HomeActivity : AppCompatActivity() {
     playManager = PlayManager(this, object : PlayManager.PlayerDelegate {
       override fun onCompletion() {
         if (bleManager.isClientReady()) {
-          pauseOrPlay(curPlayIndex!!, false)
+          stopPlay()
         } else {
           if (curPlayIndex!! >= PlayList.size - 1) {
             pauseOrPlay(0)
@@ -191,6 +189,13 @@ class HomeActivity : AppCompatActivity() {
     val textView: TextView = itemView as TextView
   }
 
+  private fun stopPlay() {
+    playManager.stop()
+    seekBar.progress = 0
+    seekBar.isEnabled = false
+    updatePlayState()
+  }
+
   private fun pauseOrPlay(index: Int, broadcast: Boolean = true) {
     tryPlayWithIndex(index, broadcast)
     updatePlayState()
@@ -216,7 +221,7 @@ class HomeActivity : AppCompatActivity() {
 
     val songItem = PlayList[index]
 
-    if (curPlayIndex == index) {
+    if (curPlayIndex == index && (playManager.isPlaying || playManager.isPaused)) {
       if (playManager.isPlaying) {
         if (broadcast && bleManager.isClientReady()) {
           // Ask server to dispatch command to pause
