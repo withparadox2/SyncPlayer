@@ -643,12 +643,6 @@ class HomeActivity : AppCompatActivity() {
     Log.d("[HomeActivity]", message)
   }
 
-  fun toast(message: String) {
-    runOnUiThread {
-      Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-    }
-  }
-
   override fun onRequestPermissionsResult(
     requestCode: Int,
     permissions: Array<out String>,
