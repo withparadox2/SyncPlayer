@@ -14,7 +14,7 @@ class PermissionDialog constructor(private val confirmListener: DialogInterface.
     return AlertDialog.Builder(activity)
       .setTitle("Ask Permission")
       .setMessage("We need permissions, please!!!")
-      .setPositiveButton("Take it", confirmListener)
+      .setPositiveButton("Ok", confirmListener)
       .create()
   }
 }
