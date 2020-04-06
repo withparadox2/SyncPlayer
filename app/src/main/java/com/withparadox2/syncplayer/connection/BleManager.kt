@@ -107,6 +107,7 @@ class BleManager(private val activity: Activity, private val delegate: Delegate)
         }
 
         override fun onStopScan() {
+
         }
 
         override fun onAddDevice(device: BluetoothDevice) {

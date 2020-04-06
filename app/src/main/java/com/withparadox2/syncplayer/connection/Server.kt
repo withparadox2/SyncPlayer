@@ -107,6 +107,7 @@ class Server(
       } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
         deviceList.remove(device)
       }
+      delegate.onConnectedStateChanged(device, newState == BluetoothProfile.STATE_CONNECTED)
     }
 
     override fun onServiceAdded(status: Int, service: BluetoothGattService) {
@@ -253,10 +254,6 @@ class Server(
     if (show) {
       delegate.onLog(message)
     }
-  }
-
-  fun getConnectedDeviceList(): ArrayList<BluetoothDevice> {
-    return deviceList
   }
 
   interface ServerDelegate {
