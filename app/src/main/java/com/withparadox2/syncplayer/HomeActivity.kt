@@ -18,7 +18,6 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -335,6 +334,13 @@ class HomeActivity : AppCompatActivity() {
 
     val answeredDeviceList = ArrayList<BluetoothDevice>()
     val lastServerPrepareRequestId = AtomicInteger(0)
+    var isSyncAnswered = false
+    val checkSyncAction = Runnable {
+      if (!isSyncAnswered) {
+        lastSendTime = System.currentTimeMillis()
+        wantToKnowCurrentPosition()
+      }
+    }
 
     fun onReceiveMessage(isServer: Boolean, message: String?, device: BluetoothDevice? = null) {
       log("receive message = $message")
@@ -430,6 +436,8 @@ class HomeActivity : AppCompatActivity() {
         }
         // Server answer request of Client-5
         5 -> {
+          isSyncAnswered = true
+
           if (curPlayIndex == msgSongIndex) {
             val serverPosition = content.toInt()
             val ttr = System.currentTimeMillis() - lastSendTime
@@ -543,9 +551,13 @@ class HomeActivity : AppCompatActivity() {
     }
 
     fun wantToKnowCurrentPosition() {
+      isSyncAnswered = false
       curPlayIndex?.let {
         sendMessage(0, 5, it)
       }
+
+      handler.removeCallbacks(checkSyncAction)
+      handler.postDelayed(checkSyncAction, 500)
     }
 
     fun tellPrepared() {
